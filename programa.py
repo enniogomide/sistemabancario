@@ -48,6 +48,7 @@
 
 """
 import os
+from datetime import datetime
 
 # CONSTANTES
 LIMITE_SAQUES = 3
@@ -146,6 +147,22 @@ def exibir_extrato(saldo, extrato):
     print(f"\nSaldo.......: R$ {saldo:8.2f}")
     print("\n=========================================\n")
 
+
+def inserir_lancamento_extrato(extrato_lancamentos,
+                               conta_cliente,
+                               texto_lancamento,
+                               valor):
+    # Obtém a data e hora atuais
+    now = datetime.now()
+    # Formata a data e hora
+    data_hora_formatada = now.strftime("%d/%m/%Y %H:%M")
+    descricao_lancamento = "...................."
+    descricao_lancamento = texto_lancamento + \
+        descricao_lancamento[len(texto_lancamento):]
+    extrato_lancamentos[conta_cliente] = \
+        "\n" + data_hora_formatada + " " + \
+        descricao_lancamento + f" R$ {valor:10.2f}"
+    return extrato_lancamentos
 
 # ************************************************************
 # **** Funçoes para criação da conta de cliente           ****
@@ -293,7 +310,11 @@ def selecionar_cliente(clientes):
             input()
             continue
         else:
-            cpf_valido = True
+            print(f" cliente: {cliente["nome"]}"
+                  "\n Confirma a criar conta para este cliente (S/n)?")
+            resposta = input().lower().strip()
+            if resposta != "n":
+                cpf_valido = True
     return cpf
 
 # Informar saldo inicial (depósito de abertura de conta)
@@ -325,12 +346,12 @@ def informar_limite_saque_diario():
     while not limite_saque_valido:
         limite_saque_diario = input("Informe limite de saques diário: ")
         try:
-            limite_saque_diario = float(limite_saque_diario)
+            limite_saque_diario = int(limite_saque_diario)
         except ValueError:
             print("Valor inválido. Por favor, informe um valor numérico.")
             print("pressione <enter> para continuar...")
             input()
-        if 0 < limite_saque_diario <= 10:
+        if 0 > limite_saque_diario > 10:
             print("Limite de saques inválido. Entre 1 e 10")
             print("pressione <enter> para continuar...")
             input()
@@ -351,19 +372,24 @@ def criar_registro_conta_correntes(
         numero_saques_no_dia):
     ultima_conta += 1
     numero_conta = "000000"[0:6-len(str(ultima_conta))] + str(ultima_conta)
-    conta_cliente = cpf + "/" + agencia + "/" + numero_conta
+    conta_cliente = (cpf, agencia, numero_conta)
     contas_correntes[conta_cliente] = {
         "agencia": agencia,
         "numero_conta": numero_conta,
         "cliente": cpf,
-        "saldo_inicial": saldo_inicial,
+        "saldo": saldo_inicial,
         "limite_saque_diario": limite_saque_diario,
         "numero_saques_no_dia": numero_saques_no_dia
     }
+
     return conta_cliente, contas_correntes
 
 
-def criar_conta_corrente(agencia, ultima_conta, clientes, contas_correntes):
+def criar_conta_corrente(agencia,
+                         ultima_conta,
+                         clientes,
+                         contas_correntes,
+                         extrato_lancamentos):
     # solicitar CPF do cliente
     cpf = selecionar_cliente(clientes)
     # Solicitar nome e data de nascimento
@@ -382,12 +408,13 @@ def criar_conta_corrente(agencia, ultima_conta, clientes, contas_correntes):
         limite_saque_diario,
         numero_saques
     )
-    inserir_lancamento_extrato(cpf,
-                               conta_cliente,
-                               contas_correntes,
-                               "Depósito inicial",
-                               saldo_inicial)
-    return contas_correntes
+    extrato_lancamentos = inserir_lancamento_extrato(
+        extrato_lancamentos,
+        conta_cliente,
+        "Depósito inicial",
+        saldo_inicial
+    )
+    return contas_correntes, extrato_lancamentos
 # ************************************************************
 # **** Funcão main para controle geral do app             ****
 # ************************************************************
@@ -398,6 +425,7 @@ def __main__():
     saldo = 0
     limite = 500
     extrato = ""
+    extrato_lancamentos = {}
     numero_saques = 0
     clientes = {}  # Dicionário para armazenar clientes
     contas_correntes = {}  # Dicionário para armazenar contas correntes
@@ -471,13 +499,16 @@ def __main__():
             clientes = criar_cliente(clientes)
         # opção criar Conta corrente
         elif opcao == "c":
-            contas_correntes = criar_conta_corrente(
+            contas_correntes, extrato_lancamentos = criar_conta_corrente(
                 agencia,
                 ultima_conta,
                 clientes,
-                contas_correntes
+                contas_correntes,
+                extrato_lancamentos
             )
             print(contas_correntes)
+            print(" -------------------------------")
+            print(extrato_lancamentos)
             print("pressione <enter> para continuar...")
             input()
 
