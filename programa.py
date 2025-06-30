@@ -54,7 +54,7 @@ from datetime import datetime
 LIMITE_SAQUES = 3
 
 # variáveis
-agencia = "1000"
+agencia = "00001"
 ultima_conta = 0
 
 # ************************************************************
@@ -79,21 +79,137 @@ def menu():
     os.system("cls" if os.name == "nt" else "clear")
     print(menu)
 
+
+# ************************************************************
+# **** Funçoes gerais para localizar dados                ****
+# ************************************************************
+
+# selecionar cliente
+
+def selecionar_cliente(clientes):
+    cpf_valido = False
+    cpf = ""
+    while not cpf_valido:
+        cpf = input("Informe o CPF do cliente: ").strip()
+        # Validar CPF
+        if not cpf.isdigit() or len(cpf) != 11:
+            print("CPF inválido. Deve conter apenas números e ter 11 dígitos.")
+            input()
+            continue
+        # Verificar se o CPF já está cadastrado
+        cliente = clientes.get(cpf)
+        if not cliente:
+            print(f"CPF {cpf} - Não existe cliente cadastrado.")
+            input()
+            continue
+        else:
+            print(f" cliente: {cliente["nome"]}"
+                  "\n Confirme a seleção deste cliente (S/n)?")
+            resposta = input().lower().strip()
+            if resposta != "n":
+                cpf_valido = True
+    return cpf
+
+# selecionar conta
+
+
+def selecionar_conta(cpf, agencia, contas_correntes):
+    conta_valida = False
+    while not conta_valida:
+        conta = input("Informe o numero da conta: ").strip()
+        # Validar Conta
+        if not conta.isdigit() or len(conta) != 6:
+            print("Numero de Conta invalido. Deve conter apenas números e ter 6 dígitos.")
+            input()
+            continue
+        # Verificar se a conta existe
+        chave_conta = (cpf, agencia, conta)
+        dados_da_conta = contas_correntes.get(chave_conta)
+        print(f"No selecioanr conta -> chave da conta: {chave_conta} \n dados da conta: {dados_da_conta}")
+        input()
+        if not dados_da_conta:
+            print(f"conta corrente => cpf: {cpf} agencia: {agencia} "
+                  f"- numero {conta} - Não cadastrada.")
+            input()
+            continue
+        else:
+            print(f"conta corrente cpf: {cpf} agencia: {agencia} "
+                  f"- numero {conta}"
+                  "\n Confirma depósito nesta conta (S/n)?")
+            resposta = input().lower().strip()
+            if resposta != "n":
+                conta_valida = True
+    print(f"Antes retornar selecioanr conta -> chave da conta: {chave_conta} \n dados da conta: {dados_da_conta}")
+    input()       
+    return chave_conta, dados_da_conta
+
+# selecionar conta
+
+
+def obter_valor():
+    valor_valido = False
+    while not valor_valido:
+        valor = input("Informe o valor a depositar: ")
+        try:
+            valor = float(valor)
+        except ValueError:
+            print("Valor inválido. Por favor, informe um valor.")
+            print("pressione <enter> para continuar...")
+            input()
+            continue
+
+        if valor <= 0:
+            continue
+
+        valor_valido = True
+        return valor
+
 # ************************************************************
 # **** Funcão fazer depósito na conta corrente            ****
 # ************************************************************
 
 
-def depositar_na_conta(saldo, valor, extrato):
+def depositar_na_conta(chave_conta, dados_da_conta, extrato_lancamentos,
+                       contas_correntes, valor):
+    print(f"contas correntes antes atualização: {contas_correntes}")
+    print(f"dados da conta: {dados_da_conta}")
+    print(f"chave da conta: {chave_conta}")
+    contas_correntes.update({chave_conta: dados_da_conta})
+    print(f"contas correntes após atualização: {contas_correntes}")
+    input()
+    extrato_lancamentos = inserir_lancamento_extrato(
+        extrato_lancamentos,
+        chave_conta,
+        "Depósito",
+        valor
+        )
+    return extrato_lancamentos, chave_conta, contas_correntes
 
-    if valor <= 0:
-        mensagem = "O valor informado é inválido."
-    else:
-        saldo += valor
-        extrato += f"Depósito....: R$ {valor:8.2f}\n"
-        mensagem = "Depósito realizado com sucesso! Saldo atual:" \
-            + f" R$ {saldo:8.2f}"
-    return saldo, extrato, mensagem
+# ************************************************************
+# **** Função para preparar para registrar depósito       ****
+# ************************************************************
+
+
+def fazer_deposito(agencia, clientes, contas_correntes, extrato_lancamentos):
+    mensagem = ""
+    cpf = selecionar_cliente(clientes)
+    chave_conta, dados_da_conta = \
+        selecionar_conta(cpf, agencia, contas_correntes)
+    valor = obter_valor()
+
+    print(f"Antes de atualizar saldo: dados da conta: {dados_da_conta} \n contas correntes: {contas_correntes}")
+    input()
+    dados_da_conta["saldo"] += valor
+    dados_da_conta["numero_saques_no_dia"] += 1
+
+    contas_correntes, extrato_lancamentos, mensagem = depositar_na_conta(
+        chave_conta, dados_da_conta, extrato_lancamentos, contas_correntes,
+        valor)
+    mensagem = "Depósito realizado com sucesso! Saldo atual:" \
+        + f" R$ {dados_da_conta["saldo"]:8.2f}"
+
+    return contas_correntes, extrato_lancamentos, mensagem
+
 
 # ************************************************************
 # **** Funcão para fazer o saque na conta corrente        ****
@@ -149,7 +265,7 @@ def exibir_extrato(saldo, extrato):
 
 
 def inserir_lancamento_extrato(extrato_lancamentos,
-                               conta_cliente,
+                               chave_conta,
                                texto_lancamento,
                                valor):
     # Obtém a data e hora atuais
@@ -159,7 +275,7 @@ def inserir_lancamento_extrato(extrato_lancamentos,
     descricao_lancamento = "...................."
     descricao_lancamento = texto_lancamento + \
         descricao_lancamento[len(texto_lancamento):]
-    extrato_lancamentos[conta_cliente] = \
+    extrato_lancamentos[chave_conta] = \
         "\n" + data_hora_formatada + " " + \
         descricao_lancamento + f" R$ {valor:10.2f}"
     return extrato_lancamentos
@@ -290,32 +406,6 @@ def criar_cliente(clientes):
 # **** Criar a conta do cliente                           ****
 # ************************************************************
 
-# selecionar cliente
-
-
-def selecionar_cliente(clientes):
-    cpf_valido = False
-    cpf = ""
-    while not cpf_valido:
-        cpf = input("Informe o CPF do cliente para criar a conta: ").strip()
-        # Validar CPF
-        if not cpf.isdigit() or len(cpf) != 11:
-            print("CPF inválido. Deve conter apenas números e ter 11 dígitos.")
-            input()
-            continue
-        # Verificar se o CPF já está cadastrado
-        cliente = clientes.get(cpf)
-        if not cliente:
-            print(f"CPF {cpf} - Não existe cliente cadastrado.")
-            input()
-            continue
-        else:
-            print(f" cliente: {cliente["nome"]}"
-                  "\n Confirma a criar conta para este cliente (S/n)?")
-            resposta = input().lower().strip()
-            if resposta != "n":
-                cpf_valido = True
-    return cpf
 
 # Informar saldo inicial (depósito de abertura de conta)
 
@@ -372,8 +462,8 @@ def criar_registro_conta_correntes(
         numero_saques_no_dia):
     ultima_conta += 1
     numero_conta = "000000"[0:6-len(str(ultima_conta))] + str(ultima_conta)
-    conta_cliente = (cpf, agencia, numero_conta)
-    contas_correntes[conta_cliente] = {
+    chave_conta = (cpf, agencia, numero_conta)
+    contas_correntes[chave_conta] = {
         "agencia": agencia,
         "numero_conta": numero_conta,
         "cliente": cpf,
@@ -382,7 +472,7 @@ def criar_registro_conta_correntes(
         "numero_saques_no_dia": numero_saques_no_dia
     }
 
-    return conta_cliente, contas_correntes
+    return chave_conta, contas_correntes, ultima_conta
 
 
 def criar_conta_corrente(agencia,
@@ -399,28 +489,55 @@ def criar_conta_corrente(agencia,
     # solicitar endereço
     numero_saques = 0
     # Criar dicionário com os dados do cliente
-    conta_cliente, contas_correntes = criar_registro_conta_correntes(
-        contas_correntes,
-        agencia,
-        ultima_conta,
-        cpf,
-        saldo_inicial,
-        limite_saque_diario,
-        numero_saques
-    )
+    chave_conta, contas_correntes, ultima_conta = \
+        criar_registro_conta_correntes(
+            contas_correntes,
+            agencia,
+            ultima_conta,
+            cpf,
+            saldo_inicial,
+            limite_saque_diario,
+            numero_saques
+        )
     extrato_lancamentos = inserir_lancamento_extrato(
         extrato_lancamentos,
-        conta_cliente,
+        chave_conta,
         "Depósito inicial",
         saldo_inicial
     )
-    return contas_correntes, extrato_lancamentos
+    return contas_correntes, extrato_lancamentos, ultima_conta
+# ************************************************************
+# **** Funcão listar os dados da contas correntes           ****
+# ************************************************************
+
+
+def listar_conta_corrente(
+        agencia,
+        clientes,
+        contas_correntes):
+
+    print(f"Contas correntes cadastradas - agencia: {agencia}")
+    print("--------------------------------------------------------------------")
+    print("cliente    | Conta  |      saldo  | qtde saques | Saques realizados|")
+    print("--------------------------------------------------------------------")
+    print()
+    for conta in contas_correntes:
+        dados = contas_correntes[conta]
+        # print(conta)
+        # print(dados)
+        # print(f"{conta[0]}, " - ", {conta[2]}, " - ",
+        #       f"{[dados]["saldo"]}:8.2f")
+        print(f"{conta[0]}  | {conta[2]}  | {dados["saldo"]:8.2f} |           "
+              f"{dados["limite_saque_diario"]} |                "
+              f"{dados["numero_saques_no_dia"]} |")
+
+
 # ************************************************************
 # **** Funcão main para controle geral do app             ****
 # ************************************************************
 
 
-def __main__():
+def __main__(agencia, ultima_conta):
 
     saldo = 0
     limite = 500
@@ -429,6 +546,13 @@ def __main__():
     numero_saques = 0
     clientes = {}  # Dicionário para armazenar clientes
     contas_correntes = {}  # Dicionário para armazenar contas correntes
+    clientes = {"12345678901": {
+        "nome": "Jose da Siva jr.", 
+        "cpf": "12345678901", 
+        "data_nascimento": "10/10/2020", 
+        "endereco": "rua cem, 123 - cidade/uf - 12345678"}}
+
+    contas_correntes = {('12345678901', '00001', '000001'): {'agencia': '1000', 'numero_conta': '000001', 'cliente': '12345678901', 'saldo': 1000.0, 'limite_saque_diario': 3, 'numero_saques_no_dia': 0}, ('12345678901', '00001', '000002'): {'agencia': '1000', 'numero_conta': '000002', 'cliente': '12345678901', 'saldo': 5000.0, 'limite_saque_diario': 5, 'numero_saques_no_dia': 0}}
 
     while True:
         menu()
@@ -450,19 +574,11 @@ def __main__():
 
         # opção para fazer o depósito
         elif opcao == "d":
-            valor = input("Informe o valor a depositar: ")
-            try:
-                valor = float(valor)
-            except ValueError:
-                print("Valor inválido. Por favor, informe um valor.")
-                print("pressione <enter> para continuar...")
-                input()
-                continue
-
-            saldo, extrato, mensagem = depositar_na_conta(
-                saldo, valor, extrato
-            )
-
+            contas_correntes, extrato_lancamentos, mensagem \
+                = fazer_deposito(agencia,
+                                 clientes,
+                                 contas_correntes,
+                                 extrato_lancamentos)
             print(mensagem)
             print("pressione <enter> para continuar...")
             input()
@@ -499,7 +615,7 @@ def __main__():
             clientes = criar_cliente(clientes)
         # opção criar Conta corrente
         elif opcao == "c":
-            contas_correntes, extrato_lancamentos = criar_conta_corrente(
+            contas_correntes, extrato_lancamentos, ultima_conta = criar_conta_corrente(
                 agencia,
                 ultima_conta,
                 clientes,
@@ -507,13 +623,19 @@ def __main__():
                 extrato_lancamentos
             )
             print(contas_correntes)
-            print(" -------------------------------")
-            print(extrato_lancamentos)
+            input()
+        # opção criar Conta corrente
+        elif opcao == "l":
+            listar_conta_corrente(
+                agencia,
+                clientes,
+                contas_correntes
+            )
             print("pressione <enter> para continuar...")
             input()
 
 
-__main__()
+__main__(agencia, ultima_conta)
 
 # saldo = 0
 # limite = 500
