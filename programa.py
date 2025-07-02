@@ -163,7 +163,7 @@ def obter_valor():
 
 
 def exibir_extrato(agencia,
-                   clientes,
+                   clientes, /, *,
                    contas_correntes,
                    extrato_lancamentos):
     cpf = selecionar_cliente(clientes)
@@ -229,7 +229,7 @@ def depositar_na_conta(chave_conta,
 def fazer_deposito(agencia,
                    clientes,
                    contas_correntes,
-                   extrato_lancamentos):
+                   extrato_lancamentos, /):
     mensagem = ""
     cpf = selecionar_cliente(clientes)
     chave_conta, dados_da_conta = \
@@ -271,7 +271,7 @@ def sacar_da_conta(chave_conta,
 # ************************************************************
 
 
-def fazer_saque_da_conta(agencia,
+def fazer_saque_da_conta(*, agencia,
                          clientes,
                          contas_correntes,
                          extrato_lancamentos,
