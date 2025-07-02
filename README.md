@@ -27,6 +27,7 @@ para entrega do projeto
 - foram criados registros para clientes, conta-correntes e lancamentos, previamente para faciliar o processo de teste.
 - Para cada função que for utilizar precisa identificar o cliente, conta-corrente.
 - foi utilizado com base o projeto inicial. dúvidas foram resolvidas consultando na web e documentação da linguagem e exemplo de outras pessoas.
+- todas as funcionalidades está um um só arquivo. o ideal é separar em arquivos as funçoes.
 
 
 ## Melhorias
